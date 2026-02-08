@@ -1,0 +1,13 @@
+{
+  "name": "cli-llm-council",
+  "version": "0.1.0",
+  "description": "Terminal-based LLM council orchestration CLI (Claude Code + Codex)",
+  "type": "module",
+  "bin": {
+    "cli-llm-council": "bin/llm-council.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  }
+}

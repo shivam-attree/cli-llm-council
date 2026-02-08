@@ -1,0 +1,5 @@
+node_modules
+backups
+backup_*
+codex-patch-*.diff
+.DS_Store
