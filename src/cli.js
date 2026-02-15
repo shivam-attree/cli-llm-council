@@ -6,6 +6,7 @@ import { shouldReview } from './review.js';
 import { printBlock, printHeading } from './format.js';
 import { runCommand } from './runner.js';
 import { captureBaseline, computeDelta, buildDeltaContext } from './git.js';
+import { loadSummary, appendSummary } from './context.js';
 
 const EXIT_COMMANDS = new Set(['exit', 'quit']);
 const AUTH_KEYWORDS = ['auth', 'api key', 'unauthorized'];
@@ -173,8 +174,9 @@ async function executeTool(toolKey, config, toolOptions) {
   return { result, output };
 }
 
-function runClaudePhase(userCommand, config) {
+function runClaudePhase(userCommand, config, conversationSummary) {
   const claudeOptions = TOOLS.claude.getOptions(config, userCommand);
+  claudeOptions.conversationSummary = conversationSummary;
   if (config.claude.pexpect) {
     claudeOptions.suppressOutput = true;
   }
@@ -356,11 +358,12 @@ async function applyCodexPatch(patchText, useGitApply, debugPatch) {
   }
 }
 
-async function runCodexPhase(userCommand, config, claudeResult, changeContext) {
+async function runCodexPhase(userCommand, config, claudeResult, changeContext, conversationSummary) {
   console.log(`\n${TOOLS.codex.label} will now review this output\n`);
 
   const codexOptions = TOOLS.codex.getOptions(config, userCommand, claudeResult.stdout);
   codexOptions.changeContext = changeContext;
+  codexOptions.conversationSummary = conversationSummary;
   return executeTool('codex', config, codexOptions);
 }
 
@@ -368,8 +371,9 @@ async function handleCommand(userCommand, config) {
   console.log(printHeading('User Command', userCommand));
 
   const baseline = await captureBaseline();
+  const conversationSummary = loadSummary();
 
-  const claudeExecution = await runClaudePhase(userCommand, config);
+  const claudeExecution = await runClaudePhase(userCommand, config, conversationSummary);
   if (!claudeExecution) return;
 
   const { result: claudeResult, output: claudeOutput } = claudeExecution;
@@ -385,8 +389,10 @@ async function handleCommand(userCommand, config) {
         ? 'See Claude output above.'
         : claudeOutput;
       console.log(printBlock('✅ Final Output', finalMessage));
+      appendSummary({ question: userCommand, answer: claudeOutput });
     } else {
       console.log('\n✅ Task complete. No review needed for this command.');
+      appendSummary({ question: userCommand, answer: claudeOutput });
     }
     return;
   }
@@ -398,6 +404,7 @@ async function handleCommand(userCommand, config) {
       ? 'See Claude output above.'
       : claudeOutput;
     console.log(printBlock('✅ Final Output', finalMessage));
+    appendSummary({ question: userCommand, answer: claudeOutput });
     return;
   }
 
@@ -409,7 +416,7 @@ async function handleCommand(userCommand, config) {
   if (preview) {
     console.log(printBlock('🧾 Diff Preview Sent To Codex', preview));
   }
-  const codexExecution = await runCodexPhase(userCommand, config, claudeResult, changeContext);
+  const codexExecution = await runCodexPhase(userCommand, config, claudeResult, changeContext, conversationSummary);
   if (!codexExecution) return;
 
   const debugPatch = process.env.CODEX_DEBUG_PATCH === '1';
@@ -446,6 +453,7 @@ async function handleCommand(userCommand, config) {
     ? 'See Claude output above.'
     : finalOutput;
   console.log(printBlock('✅ Final Output', finalMessage));
+  appendSummary({ question: userCommand, answer: finalOutput });
 }
 
 function createInteractiveSession(config) {

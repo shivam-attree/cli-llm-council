@@ -1,6 +1,6 @@
 import { runCommand, runCommandPty } from './runner.js';
 
-export function buildCodexPrompt({ userCommand, claudeOutput, changeContext = '' }) {
+export function buildCodexPrompt({ userCommand, claudeOutput, changeContext = '', conversationSummary = '' }) {
   return [
     'You are Codex acting as a senior reviewer.',
     'Review the Claude output for correctness, edge cases, performance, and safety.',
@@ -43,6 +43,9 @@ export function buildCodexPrompt({ userCommand, claudeOutput, changeContext = ''
     'User command:',
     userCommand,
     '',
+    'Conversation summary so far:',
+    conversationSummary || '(none)',
+    '',
     'Claude output:',
     claudeOutput,
     '',
@@ -60,8 +63,8 @@ function withSubcommand(args, subcommand) {
   return args;
 }
 
-export async function runCodex({ cmd, args, userCommand, claudeOutput, changeContext, timeoutMs, usePty, subcommand }) {
-  const prompt = buildCodexPrompt({ userCommand, claudeOutput, changeContext });
+export async function runCodex({ cmd, args, userCommand, claudeOutput, changeContext, conversationSummary, timeoutMs, usePty, subcommand }) {
+  const prompt = buildCodexPrompt({ userCommand, claudeOutput, changeContext, conversationSummary });
   const runner = usePty ? runCommandPty : runCommand;
   const finalArgs = withSubcommand(args, subcommand);
   return runner({

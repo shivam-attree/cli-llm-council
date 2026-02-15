@@ -39,12 +39,23 @@ function getPexpectHelperPath() {
  * @param {number} options.timeoutMs - Timeout in milliseconds
  * @returns {Promise<Object>} Execution result with stdout, stderr, code
  */
-async function runClaudeViaPexpect({ cmd, args = [], userCommand, timeoutMs }) {
+function buildPrompt({ userCommand, conversationSummary }) {
+  if (!conversationSummary || conversationSummary.trim().length === 0) return userCommand;
+  return [
+    'Conversation summary so far:',
+    conversationSummary.trim(),
+    '',
+    'User command:',
+    userCommand
+  ].join('\n');
+}
+
+async function runClaudeViaPexpect({ cmd, args = [], userCommand, conversationSummary, timeoutMs }) {
   const capturePath = createCapturePath();
   const helperPath = getPexpectHelperPath();
 
   const env = {
-    COUNCIL_PROMPT: userCommand,
+    COUNCIL_PROMPT: buildPrompt({ userCommand, conversationSummary }),
     COUNCIL_CAPTURE_PATH: capturePath
   };
 
@@ -88,13 +99,13 @@ function selectRunner({ interactive, usePty }) {
  * @param {boolean} options.interactive - Enable interactive mode
  * @returns {Promise<Object>} Execution result with stdout, stderr, code
  */
-async function runClaudeDirect({ cmd, args, userCommand, timeoutMs, usePty, interactive }) {
+async function runClaudeDirect({ cmd, args, userCommand, conversationSummary, timeoutMs, usePty, interactive }) {
   const runner = selectRunner({ interactive, usePty });
 
   return runner({
     cmd,
     args,
-    input: userCommand,
+    input: buildPrompt({ userCommand, conversationSummary }),
     timeoutMs
   });
 }
